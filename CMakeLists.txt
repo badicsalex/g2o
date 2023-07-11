@@ -214,6 +214,7 @@ option(G2O_BUILD_SLAM3D_ADDON_TYPES "Build SLAM 3D addon types" ON)
 option(G2O_BUILD_SBA_TYPES "Build SLAM3D SBA types" ON)
 option(G2O_BUILD_ICP_TYPES "Build SLAM3D ICP types" ON)
 option(G2O_BUILD_SIM3_TYPES "Build SLAM3D sim3 types" ON)
+option(G2O_BUILD_VIO_TYPES "Build Visual Inertial Odometry types" ON)
 
 # Process the arguments. If G2O_BUILD_SLAM3D_TYPES is disabled, forceably
 # disable all the types. Enable SBA if it's not enabled but one of it's
@@ -243,11 +244,15 @@ if(G2O_BUILD_SLAM3D_TYPES)
     endif()
     string(APPEND supported_types_message " sim3")
   endif()
+  if (G2O_BUILD_VIO_TYPES)
+    string(APPEND supported_types_message " vio")
+  endif()
 else()
   set(G2O_BUILD_SLAM3D_ADDON_TYPES OFF)
   set(G2O_BUILD_SBA_TYPES OFF)
   set(G2O_BUILD_ICP_TYPES OFF)
   set(G2O_BUILD_SIM3_TYPES OFF)
+  set(G2O_BUILD_VIO_TYPES OFF)
 endif()
 
 if(DEFINED supported_types_message)
