@@ -24,67 +24,62 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef G2O_VERTEX_IMU_BIASES_H_
-#define G2O_VERTEX_IMU_BIASES_H_
+#ifndef G2O_EDGE_SPEED_H
+#define G2O_EDGE_SPEED_H
 
-#include "g2o/core/base_vertex.h"
-#include "g2o/core/hyper_graph_action.h"
+#include "g2o/config.h"
+#include "g2o/core/base_fixed_sized_edge.h"
 #include "g2o_types_vio_api.h"
+#include "g2o/types/slam3d/vertex_se3.h"
+#include "vertex_speed.h"
 
 namespace g2o {
+
 /**
- * \brief Vertex for a tracked point in space
+ * \brief Edge between two 3D speed vertices, used for VIO
+ *
+ * Speed difference (in sensor space) between two speed nodes.
+ * First 3 elements of the measurement vector is the speed, the 4th is delta T,
+ * used for gravity calculation.
  */
-class G2O_TYPES_VIO_API VertexImuBiases : public BaseVertex<6, Vector6> {
+class G2O_TYPES_VIO_API EdgeSpeed
+    : public BaseFixedSizedEdge<3, Vector4, VertexSpeed, VertexSpeed,
+                                VertexSE3> {
  public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-  VertexImuBiases() {}
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  EdgeSpeed();
+
+  void computeError() {
+    const Vector3& from =
+        static_cast<const VertexSpeed*>(_vertices[0])->estimate();
+    const Vector3& to =
+        static_cast<const VertexSpeed*>(_vertices[1])->estimate();
+    const Matrix3& rotation =
+        static_cast<const VertexSE3*>(_vertices[2])->estimate().rotation();
+    _error = (to - from) - rotation * _measurement.head(3) -
+             Vector3(0.0, -9.81, 0.0) * _measurement.w();
+  }
   virtual bool read(std::istream& is);
   virtual bool write(std::ostream& os) const;
 
-  virtual void setToOriginImpl() { _estimate.fill(0.); }
+  virtual void setMeasurement(const Vector4& m) { _measurement = m; }
 
-  virtual void oplusImpl(const double* update_) {
-    Eigen::Map<const Vector6> update(update_);
-    _estimate += update;
-  }
-
-  virtual bool setEstimateDataImpl(const double* est) {
-    Eigen::Map<const Vector6> estMap(est);
-    _estimate = estMap;
+  virtual bool setMeasurementData(const double* d) {
+    _measurement = Vector4(d[0], d[1], d[2], d[3]);
     return true;
   }
 
-  virtual bool getEstimateData(double* est) const {
-    Eigen::Map<Vector6> estMap(est);
-    estMap = _estimate;
+  virtual bool getMeasurementData(double* d) const {
+    Eigen::Map<Vector4> m(d);
+    m = _measurement;
     return true;
   }
 
-  virtual int estimateDimension() const { return Dimension; }
+  virtual int measurementDimension() const { return 3; }
 
-  virtual bool setMinimalEstimateDataImpl(const double* est) {
-    _estimate = Eigen::Map<const Vector6>(est);
-    return true;
-  }
-
-  virtual bool getMinimalEstimateData(double* est) const {
-    Eigen::Map<Vector6> v(est);
-    v = _estimate;
-    return true;
-  }
-
-  virtual int minimalEstimateDimension() const { return Dimension; }
-};
-
-class G2O_TYPES_VIO_API VertexImuBiasesWriteGnuplotAction
-    : public WriteGnuplotAction {
- public:
-  VertexImuBiasesWriteGnuplotAction();
-  virtual HyperGraphElementAction* operator()(
-      HyperGraph::HyperGraphElement* element,
-      HyperGraphElementAction::Parameters* params_);
+  virtual void linearizeOplus();
 };
 
 }  // namespace g2o
+
 #endif

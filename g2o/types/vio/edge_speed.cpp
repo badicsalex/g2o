@@ -24,39 +24,49 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "vertex_imu_biases.h"
+#include "edge_speed.h"
 
-#include <stdio.h>
-
-#include <typeinfo>
+#include "isometry3d_gradients.h"
 
 namespace g2o {
 
-bool VertexImuBiases::read(std::istream& is) {
-  return internal::readVector(is, _estimate);
+EdgeSpeed::EdgeSpeed()
+    : BaseFixedSizedEdge<3, Vector4, VertexSpeed, VertexSpeed, VertexSE3>() {
+  _information.setIdentity();
+  _error.setZero();
 }
 
-bool VertexImuBiases::write(std::ostream& os) const {
-  return internal::writeVector(os, estimate());
+bool EdgeSpeed::read(std::istream& is) {
+  Vector4 p;
+  is >> p[0] >> p[1] >> p[2] >> p[3];
+  setMeasurement(p);
+  for (int i = 0; i < 3; ++i)
+    for (int j = i; j < 3; ++j) {
+      is >> information()(i, j);
+      if (i != j) information()(j, i) = information()(i, j);
+    }
+  return true;
 }
 
-VertexImuBiasesWriteGnuplotAction::VertexImuBiasesWriteGnuplotAction()
-    : WriteGnuplotAction(typeid(VertexImuBiases).name()) {}
+bool EdgeSpeed::write(std::ostream& os) const {
+  Vector4 p = measurement();
+  os << p.x() << " " << p.y() << " " << p.z() << " " << p.w();
+  for (int i = 0; i < 3; ++i)
+    for (int j = i; j < 3; ++j) os << " " << information()(i, j);
+  return os.good();
+}
 
-HyperGraphElementAction* VertexImuBiasesWriteGnuplotAction::operator()(
-    HyperGraph::HyperGraphElement* element,
-    HyperGraphElementAction::Parameters* params_) {
-  if (typeid(*element).name() != _typeName) return nullptr;
-  WriteGnuplotAction::Parameters* params =
-      static_cast<WriteGnuplotAction::Parameters*>(params_);
-  if (!params->os) {
-    return nullptr;
-  }
+void EdgeSpeed::linearizeOplus() {
+  const Matrix3& rotation =
+      static_cast<const VertexSE3*>(_vertices[2])->estimate().rotation();
+  std::get<0>(this->_jacobianOplus) = -Matrix3::Identity();
+  std::get<1>(this->_jacobianOplus) = Matrix3::Identity();
 
-  VertexImuBiases* v = static_cast<VertexImuBiases*>(element);
-  *(params->os) << v->estimate().x() << " " << v->estimate().y() << " "
-                << v->estimate().z() << " " << std::endl;
-  return this;
+  auto se3Jacobian = std::get<2>(this->_jacobianOplus);
+  se3Jacobian.template block<3, 3>(0, 0).setZero();
+  Matrix3 S;
+  internal::skewT(S, _measurement.head(3));
+  se3Jacobian.template block<3, 3>(0, 3) = rotation * S;
 }
 
 }  // namespace g2o

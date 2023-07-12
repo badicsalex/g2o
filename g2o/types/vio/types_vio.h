@@ -27,5 +27,8 @@
 #ifndef G2O_TYPES_VIO_
 #define G2O_TYPES_VIO_
 
+#include "vertex_speed.h"
+#include "edge_imu.h"
+#include "edge_speed.h"
 
 #endif
