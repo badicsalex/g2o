@@ -76,8 +76,6 @@ class G2O_TYPES_VIO_API EdgeSpeed
   }
 
   virtual int measurementDimension() const { return 3; }
-
-  virtual void linearizeOplus();
 };
 
 }  // namespace g2o

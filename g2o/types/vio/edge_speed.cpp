@@ -56,17 +56,4 @@ bool EdgeSpeed::write(std::ostream& os) const {
   return os.good();
 }
 
-void EdgeSpeed::linearizeOplus() {
-  const Matrix3& rotation =
-      static_cast<const VertexSE3*>(_vertices[2])->estimate().rotation();
-  std::get<0>(this->_jacobianOplus) = -Matrix3::Identity();
-  std::get<1>(this->_jacobianOplus) = Matrix3::Identity();
-
-  auto se3Jacobian = std::get<2>(this->_jacobianOplus);
-  se3Jacobian.template block<3, 3>(0, 0).setZero();
-  Matrix3 S;
-  internal::skewT(S, _measurement.head(3));
-  se3Jacobian.template block<3, 3>(0, 3) = rotation * S;
-}
-
 }  // namespace g2o
