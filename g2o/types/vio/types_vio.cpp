@@ -41,7 +41,7 @@ G2O_REGISTER_TYPE(EDGE_IMU, EdgeImuMeasurement);
 G2O_REGISTER_TYPE(EDGE_SPEED, EdgeSpeed);
 
 #ifdef G2O_HAVE_OPENGL
-//G2O_REGISTER_ACTION(CacheCameraDrawAction);
+G2O_REGISTER_ACTION(EdgeImuMeasurementDrawAction);
 #endif
 
 G2O_ATTRIBUTE_CONSTRUCTOR(init_vio_types) {
