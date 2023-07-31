@@ -41,20 +41,12 @@ bool EdgeSpeed::read(std::istream& is) {
   Vector4 p;
   is >> p[0] >> p[1] >> p[2] >> p[3];
   setMeasurement(p);
-  for (int i = 0; i < 3; ++i)
-    for (int j = i; j < 3; ++j) {
-      is >> information()(i, j);
-      if (i != j) information()(j, i) = information()(i, j);
-    }
-  return true;
+  return readInformationMatrix(is);
 }
 
 bool EdgeSpeed::write(std::ostream& os) const {
   Vector4 p = measurement();
-  os << p.x() << " " << p.y() << " " << p.z() << " " << p.w();
-  for (int i = 0; i < 3; ++i)
-    for (int j = i; j < 3; ++j) os << " " << information()(i, j);
-  return os.good();
+  return writeInformationMatrix(os);
 }
 
 }  // namespace g2o
