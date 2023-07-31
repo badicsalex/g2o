@@ -1,10 +1,14 @@
 add_library(types_vio ${G2O_LIB_TYPE}
   edge_imu.cpp
   edge_imu.h
+  edge_imu_bias.cpp
+  edge_imu_bias.h
   edge_speed.cpp
   edge_speed.h
   types_vio.cpp
   types_vio.h
+  vertex_imu_bias.cpp
+  vertex_imu_bias.h
   vertex_speed.cpp
   vertex_speed.h
 )

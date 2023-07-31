@@ -31,7 +31,8 @@
 namespace g2o {
 
 EdgeSpeed::EdgeSpeed()
-    : BaseFixedSizedEdge<3, Vector4, VertexSpeed, VertexSpeed, VertexSE3>() {
+    : BaseFixedSizedEdge<3, Vector4, VertexSpeed, VertexSpeed, VertexSE3,
+                         VertexImuBias>() {
   _information.setIdentity();
   _error.setZero();
 }

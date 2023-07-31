@@ -31,6 +31,7 @@
 #include "g2o/core/base_fixed_sized_edge.h"
 #include "g2o/types/slam3d/vertex_se3.h"
 #include "g2o_types_vio_api.h"
+#include "vertex_imu_bias.h"
 #include "vertex_speed.h"
 
 namespace g2o {
@@ -49,7 +50,7 @@ struct ImuMeasurementSE3 {
  */
 class G2O_TYPES_VIO_API EdgeImuMeasurement
     : public BaseFixedSizedEdge<6, ImuMeasurementSE3, VertexSE3, VertexSE3,
-                                VertexSpeed> {
+                                VertexSpeed, VertexImuBias> {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
   EdgeImuMeasurement();

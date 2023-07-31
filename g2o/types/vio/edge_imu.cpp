@@ -30,6 +30,7 @@
 
 #include "g2o/core/eigen_types.h"
 #include "g2o/types/slam3d/isometry3d_gradients.h"
+#include "isometry3d_mappings.h"
 #include "vertex_speed.h"
 
 #ifdef G2O_HAVE_OPENGL
@@ -41,7 +42,7 @@ namespace g2o {
 
 EdgeImuMeasurement::EdgeImuMeasurement()
     : BaseFixedSizedEdge<6, ImuMeasurementSE3, VertexSE3, VertexSE3,
-                         VertexSpeed>() {
+                         VertexSpeed, VertexImuBias>() {
   information().setIdentity();
 }
 
@@ -68,15 +69,25 @@ void EdgeImuMeasurement::computeError() {
   const Isometry3& from = static_cast<VertexSE3*>(_vertices[0])->estimate();
   const Isometry3& to = static_cast<VertexSE3*>(_vertices[1])->estimate();
   const Vector3& speed = static_cast<VertexSpeed*>(_vertices[2])->estimate();
+  const Vector6& biases = static_cast<VertexImuBias*>(_vertices[3])->estimate();
+  const Vector3& gyro_bias = biases.head<3>();
+  const Vector3& acc_bias = biases.tail<3>();
 
   const Matrix3 fromRot = from.rotation();
   const Matrix3& toRot = to.rotation();
 
-  const Matrix3 rotErr = (fromRot * _measurement.rotation).transpose() * toRot;
+  const Matrix3 rotErr =
+      (fromRot * _measurement.rotation *
+       internal::fromCompactQuaternion(gyro_bias * 0.5 * _measurement.deltaT))
+          .transpose() *
+      toRot;
   const Vector3 translationErr =
       to.translation() -
       (from.translation() + fromRot * _measurement.positionDiff +
        speed * _measurement.deltaT +
+       // TODO: this is not very correct here. We should instead record the full
+       //       covariance during preintegration, but that sounds like a pain.
+       fromRot * acc_bias * 0.5 * _measurement.deltaT * _measurement.deltaT +
        0.5 * Vector3(0, -9.81, 0) * _measurement.deltaT * _measurement.deltaT);
 
   _error.block<3, 1>(0, 0) = translationErr;

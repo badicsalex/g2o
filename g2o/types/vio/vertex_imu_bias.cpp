@@ -24,13 +24,39 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef G2O_TYPES_VIO_
-#define G2O_TYPES_VIO_
-
-#include "vertex_speed.h"
 #include "vertex_imu_bias.h"
-#include "edge_imu.h"
-#include "edge_speed.h"
-#include "edge_imu_bias.h"
 
-#endif
+#include <stdio.h>
+
+#include <typeinfo>
+
+namespace g2o {
+
+bool VertexImuBias::read(std::istream& is) {
+  return internal::readVector(is, _estimate);
+}
+
+bool VertexImuBias::write(std::ostream& os) const {
+  return internal::writeVector(os, estimate());
+}
+
+VertexImuBiasWriteGnuplotAction::VertexImuBiasWriteGnuplotAction()
+    : WriteGnuplotAction(typeid(VertexImuBias).name()) {}
+
+HyperGraphElementAction* VertexImuBiasWriteGnuplotAction::operator()(
+    HyperGraph::HyperGraphElement* element,
+    HyperGraphElementAction::Parameters* params_) {
+  if (typeid(*element).name() != _typeName) return nullptr;
+  WriteGnuplotAction::Parameters* params =
+      static_cast<WriteGnuplotAction::Parameters*>(params_);
+  if (!params->os) {
+    return nullptr;
+  }
+
+  VertexImuBias* v = static_cast<VertexImuBias*>(element);
+  *(params->os) << v->estimate().x() << " " << v->estimate().y() << " "
+                << v->estimate().z() << " " << std::endl;
+  return this;
+}
+
+}  // namespace g2o

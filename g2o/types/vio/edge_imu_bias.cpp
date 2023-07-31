@@ -24,13 +24,22 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef G2O_TYPES_VIO_
-#define G2O_TYPES_VIO_
-
-#include "vertex_speed.h"
-#include "vertex_imu_bias.h"
-#include "edge_imu.h"
-#include "edge_speed.h"
 #include "edge_imu_bias.h"
 
-#endif
+#include "isometry3d_gradients.h"
+
+namespace g2o {
+
+EdgeImuBias::EdgeImuBias()
+    : BaseBinaryEdge<6, float, VertexImuBias, VertexImuBias>() {
+  _information.setIdentity();
+  _error.setZero();
+}
+
+bool EdgeImuBias::read(std::istream& is) { return readInformationMatrix(is); }
+
+bool EdgeImuBias::write(std::ostream& os) const {
+  return writeInformationMatrix(os);
+}
+
+}  // namespace g2o
