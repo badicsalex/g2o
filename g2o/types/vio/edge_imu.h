@@ -29,6 +29,7 @@
 
 #include "g2o/core/base_edge.h"
 #include "g2o/core/base_fixed_sized_edge.h"
+#include "g2o/core/eigen_types.h"
 #include "g2o/types/slam3d/vertex_se3.h"
 #include "g2o_types_vio_api.h"
 #include "vertex_imu_bias.h"
@@ -39,7 +40,9 @@ namespace g2o {
 struct ImuMeasurementSE3 {
   Quaternion rotation;
   Vector3 positionDiff;
+  Matrix3 accBiasCovariance;
   double deltaT;
+  Vector3 usedGyroBias;
 };
 
 /**
@@ -60,24 +63,40 @@ class G2O_TYPES_VIO_API EdgeImuMeasurement
   virtual void computeError() override;
 
   virtual bool setMeasurementData(const double* d) override {
-    Eigen::Map<const Vector4> r(d + 3);
     Eigen::Map<const Vector3> p(d);
-    _measurement.rotation.coeffs() = r;
     _measurement.positionDiff = p;
+
+    Eigen::Map<const Vector4> r(d + 3);
+    _measurement.rotation.coeffs() = r;
+
     _measurement.deltaT = d[7];
+
+    Eigen::Map<const Vector3> ugb(d + 8);
+    _measurement.usedGyroBias = ugb;
+
+    Eigen::Map<const Matrix3> cvs(d + 11);
+    _measurement.accBiasCovariance = cvs;
     return true;
   }
 
   virtual bool getMeasurementData(double* d) const override {
-    Eigen::Map<Vector4> r(d + 3);
     Eigen::Map<Vector3> p(d);
-    r = _measurement.rotation.coeffs();
     p = _measurement.positionDiff;
+
+    Eigen::Map<Vector4> r(d + 3);
+    r = _measurement.rotation.coeffs();
+
     d[7] = _measurement.deltaT;
+
+    Eigen::Map<Vector3> ugb(d + 8);
+    ugb = _measurement.usedGyroBias;
+
+    Eigen::Map<Matrix3> cvs(d + 11);
+    cvs = _measurement.accBiasCovariance;
     return true;
   }
 
-  virtual int measurementDimension() const override { return 8; }
+  virtual int measurementDimension() const override { return 3 + 4 + 1 + 3 + 9; }
 
   Isometry3 pseudoMeasurement(const Isometry3& from) const;
 

@@ -26,26 +26,33 @@
 
 #include "edge_speed.h"
 
+#include "g2o/core/io_helper.h"
 #include "isometry3d_gradients.h"
 
 namespace g2o {
 
 EdgeSpeed::EdgeSpeed()
-    : BaseFixedSizedEdge<3, Vector4, VertexSpeed, VertexSpeed, VertexSE3,
-                         VertexImuBias>() {
+    : BaseFixedSizedEdge<3, ImuMeasurementSpeed, VertexSpeed, VertexSpeed,
+                         VertexSE3, VertexImuBias>() {
   _information.setIdentity();
   _error.setZero();
 }
 
 bool EdgeSpeed::read(std::istream& is) {
-  Vector4 p;
-  is >> p[0] >> p[1] >> p[2] >> p[3];
-  setMeasurement(p);
+  internal::readVector(is, _measurement.speedDiff);
+  is >> _measurement.deltaT;
+  for (int i = 0; i < 3 && is.good(); i++)
+    for (int j = 0; j < 3 && is.good(); j++)
+      is >> _measurement.accBiasCovariance(i, j);
   return readInformationMatrix(is);
 }
 
 bool EdgeSpeed::write(std::ostream& os) const {
-  Vector4 p = measurement();
+  internal::writeVector(os, _measurement.speedDiff);
+  os << _measurement.deltaT;
+  for (int i = 0; i < 3 && os.good(); i++)
+    for (int j = 0; j < 3 && os.good(); j++)
+      os << _measurement.accBiasCovariance(i, j);
   return writeInformationMatrix(os);
 }
 

@@ -26,6 +26,7 @@
 
 #include "edge_imu.h"
 
+#include <Eigen/src/Geometry/AngleAxis.h>
 #include <Eigen/src/Geometry/Translation.h>
 
 #include "g2o/core/eigen_types.h"
@@ -47,22 +48,27 @@ EdgeImuMeasurement::EdgeImuMeasurement()
 }
 
 bool EdgeImuMeasurement::read(std::istream& is) {
-  VectorN<8> meas;
-  internal::readVector(is, meas);
-  // normalize the quaternion to recover numerical precision lost by storing as
-  // human readable text
-  Vector4::MapType(meas.data() + 3).normalize();
-  setMeasurementData(meas.data());
-  if (is.bad()) return false;
-  readInformationMatrix(is);
-  return is.good() || is.eof();
+  internal::readVector(is, _measurement.rotation.coeffs());
+  internal::readVector(is, _measurement.positionDiff);
+  is >> _measurement.deltaT;
+  for (int i = 0; i < 3 && is.good(); i++)
+    for (int j = 0; j < 3 && is.good(); j++)
+      is >> _measurement.accBiasCovariance(i, j);
+  return readInformationMatrix(is);
 }
 
 bool EdgeImuMeasurement::write(std::ostream& os) const {
-  VectorN<8> meas;
-  getMeasurementData(meas.data());
-  internal::writeVector(os, meas);
+  internal::writeVector(os, _measurement.rotation.coeffs());
+  internal::writeVector(os, _measurement.positionDiff);
+  os << _measurement.deltaT;
+  for (int i = 0; i < 3 && os.good(); i++)
+    for (int j = 0; j < 3 && os.good(); j++)
+      os << _measurement.accBiasCovariance(i, j);
   return writeInformationMatrix(os);
+}
+
+AngleAxis fromScaledAxis(Vector3 v) {
+  return AngleAxis(v.norm(), v.normalized());
 }
 
 void EdgeImuMeasurement::computeError() {
@@ -78,16 +84,16 @@ void EdgeImuMeasurement::computeError() {
 
   const Matrix3 rotErr =
       (fromRot * _measurement.rotation *
-       internal::fromCompactQuaternion(gyro_bias * 0.5 * _measurement.deltaT))
+       fromScaledAxis((gyro_bias - _measurement.usedGyroBias) *
+                      _measurement.deltaT))
           .transpose() *
       toRot;
   const Vector3 translationErr =
       to.translation() -
-      (from.translation() + fromRot * _measurement.positionDiff +
+      (from.translation() +
+       fromRot * (_measurement.positionDiff +
+                  _measurement.accBiasCovariance * acc_bias) +
        speed * _measurement.deltaT +
-       // TODO: this is not very correct here. We should instead record the full
-       //       covariance during preintegration, but that sounds like a pain.
-       fromRot * acc_bias * 0.5 * _measurement.deltaT * _measurement.deltaT +
        0.5 * Vector3(0, -9.81, 0) * _measurement.deltaT * _measurement.deltaT);
 
   _error.block<3, 1>(0, 0) = translationErr;

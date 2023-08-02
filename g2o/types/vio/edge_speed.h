@@ -36,6 +36,11 @@
 
 namespace g2o {
 
+struct ImuMeasurementSpeed {
+  Vector3 speedDiff;
+  double deltaT;
+  Matrix3 accBiasCovariance;
+};
 /**
  * \brief Edge between two 3D speed vertices, used for VIO
  *
@@ -44,8 +49,8 @@ namespace g2o {
  * used for gravity calculation.
  */
 class G2O_TYPES_VIO_API EdgeSpeed
-    : public BaseFixedSizedEdge<3, Vector4, VertexSpeed, VertexSpeed, VertexSE3,
-                                VertexImuBias> {
+    : public BaseFixedSizedEdge<3, ImuMeasurementSpeed, VertexSpeed,
+                                VertexSpeed, VertexSE3, VertexImuBias> {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   EdgeSpeed();
@@ -59,27 +64,38 @@ class G2O_TYPES_VIO_API EdgeSpeed
         static_cast<const VertexSE3*>(_vertices[2])->estimate().rotation();
     const Vector3& acc_bias =
         static_cast<const VertexImuBias*>(_vertices[3])->estimate().tail<3>();
-    _error = (to - from) - rotation * _measurement.head(3) -
-             rotation * acc_bias * _measurement.w() -
-             Vector3(0.0, -9.81, 0.0) * _measurement.w();
+    _error =
+        (to - from) - (rotation * (_measurement.speedDiff +
+                                   _measurement.accBiasCovariance * acc_bias) +
+                       Vector3(0.0, -9.81, 0.0) * _measurement.deltaT);
   }
   virtual bool read(std::istream& is);
   virtual bool write(std::ostream& os) const;
 
-  virtual void setMeasurement(const Vector4& m) { _measurement = m; }
-
   virtual bool setMeasurementData(const double* d) {
-    _measurement = Vector4(d[0], d[1], d[2], d[3]);
+    Eigen::Map<const Vector3> sd(d);
+    _measurement.speedDiff = sd;
+
+    _measurement.deltaT = d[3];
+
+    Eigen::Map<const Matrix3> cvs(d + 4);
+    _measurement.accBiasCovariance = cvs;
     return true;
   }
 
   virtual bool getMeasurementData(double* d) const {
-    Eigen::Map<Vector4> m(d);
-    m = _measurement;
+    Eigen::Map<Vector3> sd(d);
+    sd = _measurement.speedDiff;
+
+    d[3] = _measurement.deltaT;
+
+    Eigen::Map<Matrix3> cvs(d + 3);
+    cvs = _measurement.accBiasCovariance;
+
     return true;
   }
 
-  virtual int measurementDimension() const { return 3; }
+  virtual int measurementDimension() const { return 3 + 1 + 9; }
 };
 
 }  // namespace g2o
