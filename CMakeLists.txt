@@ -408,6 +408,14 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=native")
   endif()
 
+  if(G2O_FAST_MATH)
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ffast-math")
+  endif()
+
+  if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "arm")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=armv7-a -mfpu=neon")
+  endif()
+
   # activate all warnings
   #set(g2o_C_FLAGS "${g2o_C_FLAGS} -Weverything")
   #set(g2o_CXX_FLAGS "${g2o_CXX_FLAGS} -Weverything")
